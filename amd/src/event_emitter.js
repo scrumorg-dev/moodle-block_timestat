@@ -1,5 +1,5 @@
 import ScreenTime from 'block_timestat/screentime';
-import ajax from 'core/ajax';
+import * as ajax from 'core/ajax';
 
 export const init = (contextid, config) => {
     const $timerDisplay = config.showtimer ? document.querySelector('.timer-display') : null;

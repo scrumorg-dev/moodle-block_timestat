@@ -27,7 +27,7 @@ export default class ScreenTime {
         this.viewport = {
             top: window.scrollY,
             bottom: window.scrollY + window.innerHeight
-        }
+        };
         this.options = {...ScreenTime.defaults, ...options};
         this.field = new Field(this.options.field.selector);
         this.timer = null;
@@ -87,17 +87,65 @@ export default class ScreenTime {
     }
 
     addActivityListeners() {
-        const events = ['click', 'scroll', 'mousemove', 'keypress', 'touchstart', 'touchmove', 'wheel'];
+        const activityEvents = ['click', 'scroll', 'mousemove', 'keydown', 'touchstart', 'touchmove', 'wheel'];
         const inactivityEvents = ['beforeunload', 'unload', 'pagehide', 'blur'];
-        events.forEach(event => {
-            window.addEventListener(event, () => this.resetInactivityTimer());
+
+        const handleReset = (e) => this.resetInactivityTimer(e);
+        activityEvents.forEach(type => {
+            window.addEventListener(type, handleReset, { passive: true });
         });
-        inactivityEvents.forEach(event => {
-            window.addEventListener(event, () => this.handleInactivity());
+
+        const handleFinish = (e) => this.handleInactivity(e);
+        inactivityEvents.forEach(type => {
+            window.addEventListener(type, handleFinish, { passive: true });
         });
+
+        const attachToIframe = (iframe) => {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                activityEvents.forEach(type => {
+                    iframeDoc.addEventListener(type, handleReset, { passive: true });
+                });
+                inactivityEvents.forEach(type => {
+                    iframeDoc.addEventListener(type, handleFinish, { passive: true });
+                });
+
+                const nestedIframes = iframeDoc.querySelectorAll('iframe');
+
+                nestedIframes.forEach(nested => {
+                    if (nested.contentDocument && nested.contentDocument.readyState === 'complete') {
+                        attachToIframe(nested);
+                    }
+                    nested.addEventListener('load', () => attachToIframe(nested));
+                });
+            } catch (e) {
+                // it's possible we've encountered a cross-origin iframe. Just ignore, we do the best we can
+            }
+        };
+
+        // Attach events on all top-level iframes which will then attach recursively to nested iframes
+        const iframes = document.querySelectorAll('iframe');
+        iframes.forEach(iframe => {
+            // If iframe is already loaded
+            if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+                attachToIframe(iframe);
+            }
+            // Or when it eventually loads
+            iframe.addEventListener('load', () => attachToIframe(iframe));
+        });
+
+        // Page visibility logic
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                handleFinish({ type: 'visibilitychange-hidden' });
+            } else {
+                handleReset({ type: 'visibilitychange-visible' });
+            }
+        }, { passive: true });
     }
 
-    resetInactivityTimer() {
+    resetInactivityTimer(/* e */) {
         this.inactivityTimer = 0;
         if (!this.isActive) {
             this.isActive = true;
@@ -105,7 +153,7 @@ export default class ScreenTime {
         }
     }
 
-    handleInactivity() {
+    handleInactivity(/* e */) {
         if (this.options.onInactivity) {
             this.options.onInactivity();
         }
