@@ -11,6 +11,7 @@ export const init = (contextid, lastlogid, config) => {
         field: {name: 'content', selector: 'body'},
         reportInterval: getReportInterval(config),
         inactiveInterval: getInactiveInterval(config),
+        debugMode: getDebugMode(config),
         onReport: async (log) => {
             if (!log.body) {
                 return;
@@ -68,3 +69,9 @@ const getReportInterval = (config) => {
     reportInterval = reportInterval < 10 ? 10 : reportInterval;
     return reportInterval;
 };
+
+const getDebugMode = (config) => {
+    let debugMode = config.debug || 0;
+    debugMode = debugMode === 1 || debugMode === true || debugMode === "1";
+    return debugMode;
+}

@@ -38,6 +38,8 @@ export default class ScreenTime {
         this.inactivityTimer = 0;
         this.lastReport = 0;
         this.reportInterval = this.options.reportInterval * 1000;
+        this.debugMode = this.options.debugMode;
+        console.log('debugMode is ', this.debugMode);
         document.addEventListener("visibilitychange", this.handleVisibilityChange.bind(this));
         window.addEventListener('scroll', this.updateViewport.bind(this));
         window.addEventListener('resize', this.updateViewport.bind(this));
@@ -67,6 +69,7 @@ export default class ScreenTime {
     }
 
     start() {
+        this.logMessage('starting screentimer.')
         if (this.options.onStart) {
             this.options.onStart();
         }
@@ -91,52 +94,74 @@ export default class ScreenTime {
         const inactivityEvents = ['beforeunload', 'unload', 'pagehide', 'blur'];
 
         const handleReset = (e) => this.resetInactivityTimer(e);
-        activityEvents.forEach(type => {
-            window.addEventListener(type, handleReset, { passive: true });
-        });
-
         const handleFinish = (e) => this.handleInactivity(e);
-        inactivityEvents.forEach(type => {
-            window.addEventListener(type, handleFinish, { passive: true });
-        });
 
         const attachToIframe = (iframe) => {
             try {
                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
+                this.logMessage('attaching activity listeners to iframeDoc: ', iframeDoc);
                 activityEvents.forEach(type => {
+                    iframeDoc.removeEventListener(type, handleReset);
                     iframeDoc.addEventListener(type, handleReset, { passive: true });
                 });
+
                 inactivityEvents.forEach(type => {
+                    iframeDoc.removeEventListener(type, handleFinish);
                     iframeDoc.addEventListener(type, handleFinish, { passive: true });
                 });
 
                 const nestedIframes = iframeDoc.querySelectorAll('iframe');
 
-                nestedIframes.forEach(nested => {
-                    if (nested.contentDocument && nested.contentDocument.readyState === 'complete') {
-                        attachToIframe(nested);
-                    }
-                    nested.addEventListener('load', () => attachToIframe(nested));
-                });
+                nestedIframes.forEach(nested => setupIframe(nested));
             } catch (e) {
                 // it's possible we've encountered a cross-origin iframe. Just ignore, we do the best we can
+                this.logMessage('Iframe access blocked or failed: ', e);
+            }
+        };
+
+        const setupIframe = (iframe) => {
+            attachToIframe(iframe);
+            iframe.addEventListener('load', () => attachToIframe(iframe), { once: false });
+
+            // Necessary for Chrome: check if contentWindow exists
+            if (iframe.contentWindow) {
+                iframe.contentWindow.addEventListener('DOMContentLoaded', () => attachToIframe(iframe));
             }
         };
 
         // Attach events on all top-level iframes which will then attach recursively to nested iframes
-        const iframes = document.querySelectorAll('iframe');
-        iframes.forEach(iframe => {
-            // If iframe is already loaded
-            if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
-                attachToIframe(iframe);
-            }
-            // Or when it eventually loads
-            iframe.addEventListener('load', () => attachToIframe(iframe));
+        document.querySelectorAll('iframe').forEach(setupIframe);
+
+        // Watch for new iframes being added within the document after our initial pass
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.tagName === 'IFRAME') {
+                        this.logMessage('iframe mutation observed, calling setupIframe');
+                        setupIframe(node);
+                    } else if (node.querySelectorAll) {
+                        node.querySelectorAll('iframe').forEach((iframe) => {
+                            this.logMessage('iframe found in mutation observed parent, calling setupIframe');
+                            setupIframe(iframe);
+                        });
+                    }
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        activityEvents.forEach(type => {
+            window.addEventListener(type, handleReset, { passive: true });
+        });
+        
+        inactivityEvents.forEach(type => {
+            window.addEventListener(type, handleFinish, { passive: true });
         });
 
         // Page visibility logic
         document.addEventListener('visibilitychange', () => {
+            this.logMessage('visibility change detected, new state is: ', document.visibilityState);
             if (document.visibilityState === 'hidden') {
                 handleFinish({ type: 'visibilitychange-hidden' });
             } else {
@@ -145,7 +170,9 @@ export default class ScreenTime {
         }, { passive: true });
     }
 
-    resetInactivityTimer(/* e */) {
+    resetInactivityTimer(e) {
+        this.logMessage(e);
+        this.logMessage('activity detected via event: ', e);
         this.inactivityTimer = 0;
         if (!this.isActive) {
             this.isActive = true;
@@ -153,7 +180,8 @@ export default class ScreenTime {
         }
     }
 
-    handleInactivity(/* e */) {
+    handleInactivity(e) {
+        this.logMessage('inactivity detected via event: ', e);
         if (this.options.onInactivity) {
             this.options.onInactivity();
         }
@@ -186,6 +214,7 @@ export default class ScreenTime {
         }
         const hasFields = Object.keys(this.log).length > 0;
         if (hasFields && this.options.onReport) {
+            this.logMessage('reporting ', this.log);
             this.options.onReport(this.log);
         }
         this.reportTimer = 0;
@@ -204,5 +233,11 @@ export default class ScreenTime {
     stop() {
         clearInterval(this.timer);
         this.timer = null;
+    }
+
+    logMessage(...args) {
+        if (this.debugMode) {
+            console.log(...args);
+        }
     }
 }
