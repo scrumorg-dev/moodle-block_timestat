@@ -73,7 +73,7 @@ class block_timestat extends block_base {
             $lastlog = block_timestat_get_user_last_log_by_contextid($contextid);
             $lastlogid = $lastlog->id ?? 0;
 
-            $this->page->requires->js_call_amd('block_timestat/event_emitter', 'init', [$contextid, $config]);
+            $this->page->requires->js_call_amd('block_timestat/event_emitter', 'init', [$contextid, $lastlogid, $config]);
         }
         return $this->content;
     }
