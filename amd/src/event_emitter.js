@@ -1,7 +1,7 @@
 import ScreenTime from 'block_timestat/screentime';
 import * as ajax from 'core/ajax';
 
-export const init = (contextid, config) => {
+export const init = (contextid, lastlogid, config) => {
     const $timerDisplay = config.showtimer ? document.querySelector('.timer-display') : null;
     const $timer = config.showtimer ? document.getElementById('timer') : null;
     const $reportedtime = config.showtimer ? document.getElementById('reportedtime') : null;
@@ -19,7 +19,8 @@ export const init = (contextid, config) => {
                 methodname: 'block_timestat_update_register',
                 args: {
                     timespent: log.body,
-                    contextid: parseInt(contextid, 10)
+                    contextid: parseInt(contextid, 10),
+                    lastlogid: parseInt(lastlogid, 10)
                 }
             }]);
             if (!$reportedtime) {
