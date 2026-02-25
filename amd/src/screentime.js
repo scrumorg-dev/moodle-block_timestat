@@ -160,12 +160,19 @@ export default class ScreenTime {
         });
 
         // Page visibility logic
-        document.addEventListener('visibilitychange', () => {
+        window.addEventListener('visibilitychange', () => {
             this.logMessage('visibility change detected, new state is: ', document.visibilityState);
             if (document.visibilityState === 'hidden') {
+                this.logMessage('page is hidden, pausing timer');
                 handleFinish({ type: 'visibilitychange-hidden' });
             } else {
-                handleReset({ type: 'visibilitychange-visible' });
+                if (document.hasFocus()) {
+                    this.logMessage('page is visible and document has focus, resetting timer');
+                    handleReset({ type: 'visibilitychange-visible-active' });
+                } else {
+                    this.logMessage('page is visible but document does not have focus, pausing timer');
+                    handleFinish({ type: 'visibilitychange-visible-passive'});
+                }
             }
         }, { passive: true });
     }
