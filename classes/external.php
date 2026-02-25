@@ -88,7 +88,7 @@ class external extends external_api {
                 ]
         );
         $log = block_timestat_get_user_last_log_by_contextid($contextid);
-        if ($log->userid !== $USER->id) {
+        if ($log?->userid !== $USER->id) {
             throw new moodle_exception('You are not allowed to update this log');
         }
         $recordtimestat = $DB->get_record('block_timestat', ['log_id' => $log->id]);

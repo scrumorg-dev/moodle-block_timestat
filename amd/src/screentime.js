@@ -156,7 +156,7 @@ export default class ScreenTime {
         });
         
         inactivityEvents.forEach(type => {
-            window.addEventListener(type, handleFinish, { passive: true });
+            window.addEventListener(type, handleFinish, { capture: true, passive: true });
         });
 
         // Page visibility logic

@@ -71,7 +71,7 @@ class block_timestat extends block_base {
         // If the user is not enrolled in the course, we don't want to count the time.
         if ($userisenrolled) {
             $lastlog = block_timestat_get_user_last_log_by_contextid($contextid);
-            $lastlogid = $lastlog->id ?? 0;
+            $lastlogid = $lastlog?->id ?? 0;
 
             $this->page->requires->js_call_amd('block_timestat/event_emitter', 'init', [$contextid, $lastlogid, $config]);
         }
