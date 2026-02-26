@@ -1,0 +1,20 @@
+{
+  "name": "moodle-block_timestat",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "grunt"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/plugin-transform-modules-amd": "^7.27.1",
+    "@babel/preset-env": "^7.29.0",
+    "grunt": "^1.6.1",
+    "grunt-babel": "^8.0.0",
+    "grunt-contrib-uglify": "^5.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scrumorg-dev/moodle-block_timestat.git"
+  }
+}

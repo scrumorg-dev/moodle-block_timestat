@@ -1,7 +1,7 @@
 import ScreenTime from 'block_timestat/screentime';
-import ajax from 'core/ajax';
+import * as ajax from 'core/ajax';
 
-export const init = (contextid, config) => {
+export const init = (contextid, lastlogid, config) => {
     const $timerDisplay = config.showtimer ? document.querySelector('.timer-display') : null;
     const $timer = config.showtimer ? document.getElementById('timer') : null;
     const $reportedtime = config.showtimer ? document.getElementById('reportedtime') : null;
@@ -11,6 +11,7 @@ export const init = (contextid, config) => {
         field: {name: 'content', selector: 'body'},
         reportInterval: getReportInterval(config),
         inactiveInterval: getInactiveInterval(config),
+        debugMode: getDebugMode(config),
         onReport: async (log) => {
             if (!log.body) {
                 return;
@@ -19,7 +20,8 @@ export const init = (contextid, config) => {
                 methodname: 'block_timestat_update_register',
                 args: {
                     timespent: log.body,
-                    contextid: parseInt(contextid, 10)
+                    contextid: parseInt(contextid, 10),
+                    lastlogid: parseInt(lastlogid, 10)
                 }
             }]);
             if (!$reportedtime) {
@@ -67,3 +69,9 @@ const getReportInterval = (config) => {
     reportInterval = reportInterval < 10 ? 10 : reportInterval;
     return reportInterval;
 };
+
+const getDebugMode = (config) => {
+    let debugMode = config.debug || 0;
+    debugMode = debugMode === 1 || debugMode === true || debugMode === "1";
+    return debugMode;
+}

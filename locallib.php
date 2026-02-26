@@ -1026,11 +1026,13 @@ function block_timestat_seconds_to_stringtime($seconds) {
  * Function to get the user last log by contextid
  *
  * @param int $contextid
+ * @return stdClass|null
  * @throws dml_exception
  */
-function block_timestat_get_user_last_log_by_contextid(int $contextid): stdClass {
+function block_timestat_get_user_last_log_by_contextid(int $contextid): ?stdClass {
     global $DB, $USER;
     $logs = $DB->get_records('logstore_standard_log',
             ['contextid' => $contextid, 'userid' => $USER->id], 'timecreated DESC', '*', 0, 1);
-    return reset($logs);
+    $log = reset($logs);
+    return $log ?: null;
 }

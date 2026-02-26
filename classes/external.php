@@ -57,6 +57,7 @@ class external extends external_api {
                 [
                         'timespent' => new external_value(PARAM_INT),
                         'contextid' => new external_value(PARAM_INT),
+                        'lastlogid' => new external_value(PARAM_INT),
                 ]
         );
     }
@@ -67,22 +68,27 @@ class external extends external_api {
      *
      * @param int $timespent The user time spent
      * @param int $contextid The log id
+     * @param int $lastlogid The last log id before the current timestat session
      * @return array
      * @throws dml_exception
      * @throws invalid_parameter_exception
      * @throws moodle_exception
      */
-    public static function update_register(int $timespent, int $contextid): array {
+    public static function update_register(int $timespent, int $contextid, int $lastlogid): array {
         global $DB, $USER;
 
         $context = context::instance_by_id($contextid);
         self::validate_context($context);
         $params = self::validate_parameters(
                 self::update_register_parameters(),
-                ['timespent' => $timespent, 'contextid' => $contextid]
+                [
+                    'timespent' => $timespent,
+                    'contextid' => $contextid,
+                    'lastlogid' => $lastlogid,
+                ]
         );
         $log = block_timestat_get_user_last_log_by_contextid($contextid);
-        if ($log->userid !== $USER->id) {
+        if ($log?->userid !== $USER->id) {
             throw new moodle_exception('You are not allowed to update this log');
         }
         $recordtimestat = $DB->get_record('block_timestat', ['log_id' => $log->id]);
@@ -94,7 +100,29 @@ class external extends external_api {
             $DB->insert_record('block_timestat', $recordbt);
             return [];
         }
-        $recordtimestat->timespent = $params['timespent'];
+        
+        // get a sum of timespent for all logs that have been created since we began this timestat session, excluding
+        // the current log.
+        $select = 'l.contextid = :contextid AND l.userid = :userid AND l.id > :lastlogid AND bt.log_id <> :excludeid';
+        $sumparams = [
+            'contextid' => $contextid,
+            'userid'    => $USER->id,
+            'lastlogid' => max(0, $lastlogid),
+            'excludeid' => (int)($recordtimestat->log_id ?? $log->id),
+        ];
+
+        $totalcount = 0;
+        $priorlogs = block_timestat_get_logs($select, $totalcount, $sumparams, 0, 0);
+
+        // Because block_timestat_get_logs aggregates by user there will be max one entry
+        $priortimespent = 0;
+        if (!empty($priorlogs)) {
+            $first = reset($priorlogs);
+            $priortimespent = (int)($first->timespent ?? 0);
+        }
+
+        $recordtimestat->timespent = max(0, $params['timespent'] - $priortimespent);
+
         $DB->update_record('block_timestat', $recordtimestat);
         return [];
     }
